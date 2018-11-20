@@ -25,4 +25,7 @@ fn main() {
     //array
     let array = ['1', '2', '3'];
     println!("array {} {}", array[0], array[2]);
+    //string
+    let a = "aaaa";
+    println!("a");
 }
