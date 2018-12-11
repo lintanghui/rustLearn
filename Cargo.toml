@@ -6,6 +6,7 @@ members=[
     "function",
     "ownship",
     "structs",
+    "smart_point",
     "variable",
 ]
 

@@ -19,6 +19,10 @@ name = "ownship"
 version = "0.1.0"
 
 [[package]]
+name = "smart_point"
+version = "0.1.0"
+
+[[package]]
 name = "structs"
 version = "0.1.0"
 
