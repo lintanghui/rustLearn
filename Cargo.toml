@@ -1,0 +1,11 @@
+[workspace]
+members=[
+    "common_set",
+    "data_type",
+    "enumerate",
+    "function",
+    "ownship",
+    "structs",
+    "variable",
+]
+

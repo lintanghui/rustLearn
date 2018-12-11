@@ -2,17 +2,17 @@ fn main() {
     let s = Rect::square(10);
     let area = s.area();
     println!("squra {:?} area {}", s, area);
-    let mut p = Persion{
-        name:String::from("lth"),
-        age:25,
-        addrs: 
-    }
+    let mut p = Persion {
+        name: String::from("lth"),
+        age: 25,
+        addrs: "a",
+    };
 }
-#[#[derive(Debug)]]
+#[derive(Debug)]
 struct Persion {
-name :String ,
-age :u16,
-addrs:&str,
+    name: String,
+    age: u16,
+    addrs: &'static str,
 }
 #[derive(Debug)]
 struct Rect {
