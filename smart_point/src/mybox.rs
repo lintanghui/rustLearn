@@ -11,6 +11,15 @@ pub fn use_box() {
             println!("get value back from box {}", b_back);
         }
     }
+    let x = Box::new(5);
+    let x_ref = Box::leak(x);
+    *x_ref += 1;
+    assert_eq!(*x_ref, 6);
+
+    let v = vec![2, 3, 4].into_boxed_slice();
+    let v_ref = Box::leak(v);
+    v_ref[0] = 5;
+    assert_eq!(*v_ref, [5, 3, 4]);
 }
 #[test]
 fn test_list() {
