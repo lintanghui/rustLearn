@@ -8,5 +8,6 @@ members=[
     "structs",
     "smart_point",
     "variable",
+    "concurrency",
 ]
 
