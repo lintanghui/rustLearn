@@ -1,0 +1,19 @@
+[package]
+name = "kv"
+version = "0.1.0"
+authors = ["lintanghui <lintanghui@bilibili.com>"]
+edition = "2018"
+
+[dependencies]
+tokio="0.1"
+
+[lib]
+name="kv"
+path="src/lib.rs"
+
+[[bin]]
+name="cli"
+path="bin/client/main.rs"
+[[bin]]
+name="server"
+path="bin/server/main.rs"

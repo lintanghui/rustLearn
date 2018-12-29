@@ -9,5 +9,6 @@ members=[
     "smart_point",
     "variable",
     "concurrency",
+    "kv",
 ]
 
