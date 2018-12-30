@@ -1,3 +1,3 @@
 fn main() {
-    kv::client("127.0.0.1:8000")
+    kv::client();
 }
