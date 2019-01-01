@@ -1,10 +1,6 @@
-#[macro_use]
-use futures;
 use futures::{Async, Future, Poll};
-use std::thread;
-use tokio::io;
 use tokio::io::copy;
-use tokio::net::{tcp::ConnectFuture, *};
+use tokio::net::tcp::{ConnectFuture, TcpListener, TcpStream};
 use tokio::prelude::*;
 mod stdnet;
 
@@ -12,29 +8,45 @@ struct Connect {
     conn: ConnectFuture,
 }
 
-impl Future for Connect {
-    type Item = ();
-    type Error = ();
-    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        match self.conn.poll() {
-            Ok(Async::Ready(socket)) => {
-                println!("connect ok {}", socket.peer_addr().unwrap());
-                Ok(Async::Ready(()))
-            }
-            Ok(Async::NotReady) => Ok(Async::NotReady),
-            Err(e) => {
-                println!("conn err {}", e);
-                Ok(Async::Ready(()))
-            }
-        }
-    }
-}
+// impl Future for Connect {
+//     type Item = ();
+//     type Error = ();
+//     fn poll(&mut self) -> Poll<(), Self::Error> {
+//         match self.conn.poll() {
+//             Ok(Async::Ready(socket)) => {
+//                 self.conn.;
+//                 Ok(Async::Ready(())
+//             }
+//             Ok(Async::NotReady) => Ok(Async::NotReady),
+//             Err(e) => {
+//                 println!("conn err {}", e);
+//                 Ok(Async::Ready(()))
+//             }
+//         }
+//     }
+// }
 
 pub fn client(addr: &str) {
     let host = addr.parse().unwrap();
-    let conn = TcpStream::connect(&host);
-    let con = Connect { conn };
-    tokio::run(con);
+    let conn = TcpStream::connect(&host)
+        .and_then(|stream| {
+            let (rstream, wstream) = stream.split();
+            let mut wstream = std::io::BufWriter::new(wstream);
+            for _i in 1..10 {
+                wstream.write_all("aa".as_bytes())?;
+            }
+            wstream.flush()?;
+            let rstream = std::io::BufReader::new(rstream);
+            tokio::io::lines(rstream).for_each(|line| {
+                println!("line {}", line);
+                Ok(())
+            });
+            Ok(())
+        })
+        .map_err(|err| {
+            println!("err {}", err);
+        });
+    tokio::run(conn);
 }
 
 pub fn server(addr: &str) {
