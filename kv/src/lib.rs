@@ -37,10 +37,8 @@ pub fn client(addr: &str) {
             }
             wstream.flush()?;
             let rstream = std::io::BufReader::new(rstream);
-            tokio::io::lines(rstream).for_each(|line| {
-                println!("line {}", line);
-                Ok(())
-            });
+            let mut buf = vec![];
+            rstream.read_line(buf);
             Ok(())
         })
         .map_err(|err| {
