@@ -103,6 +103,14 @@ name = "function"
 version = "0.1.0"
 
 [[package]]
+name = "future"
+version = "0.1.0"
+dependencies = [
+ "futures 0.1.25 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tokio 0.1.13 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "futures"
 version = "0.1.25"
 source = "registry+https://github.com/rust-lang/crates.io-index"
