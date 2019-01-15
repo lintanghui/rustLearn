@@ -16,28 +16,29 @@ fn main() {
     let rm = 4;
     v.remove_item(&rm);
     println!("{:?}", v);
-    let slots = vec![1,2,3,4,5];
+    let slots = vec![1, 2, 3, 4, 5];
     let mut node = vec![];
-    node.push(Node{slots:Some(slots.clone())});
-    node.push(Node{slots:Some(slots.clone())});
-    let cluster = Cluster{
-        nodes:Some(node),
-    };
+    node.push(Node {
+        slots: Some(slots.clone()),
+    });
+    node.push(Node {
+        slots: Some(slots.clone()),
+    });
+    let cluster = Cluster { nodes: Some(node) };
     range_vec(cluster);
 }
-fn range_vec(cluster :Cluster)  {
-    for node in cluster.nodes.unwrap(){
-        for slot in node.slots.as_ref().unwrap(){
+fn range_vec(cluster: Cluster) {
+    for node in cluster.nodes.unwrap() {
+        for slot in node.slots.as_ref().unwrap() {
             println!("{:?}", slot);
-            println!("{:?}",node);
+            println!("{:?}", node);
         }
     }
 }
 struct Cluster {
-    nodes :Option<Vec<Node>>,
+    nodes: Option<Vec<Node>>,
 }
 #[derive(Debug)]
 struct Node {
-    slots :Option<Vec<usize>>,
-
+    slots: Option<Vec<usize>>,
 }
