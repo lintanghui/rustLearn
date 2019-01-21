@@ -1,7 +1,14 @@
+use futures::task;
 use futures::{Async, Future, Poll};
+use futures::{Sink, Stream};
+use std::fmt::Debug;
 use tokio::io::copy;
 use tokio::net::tcp::{ConnectFuture, TcpListener, TcpStream};
 use tokio::prelude::*;
+use tokio::runtime::current_thread;
+use tokio_codec::{Decoder, Encoder};
+use self::codec::Error;
+mod codec;
 mod stdnet;
 
 struct Connect {
@@ -26,40 +33,72 @@ struct Connect {
 //     }
 // }
 
-pub fn client(addr: &str) {
-    let host = addr.parse().unwrap();
-    let conn = TcpStream::connect(&host)
-        .and_then(|stream| {
-            let (rstream, wstream) = stream.split();
-            let mut wstream = std::io::BufWriter::new(wstream);
-            for _i in 1..10 {
-                wstream.write_all("aa".as_bytes())?;
-            }
-            wstream.flush()?;
-            let rstream = std::io::BufReader::new(rstream);
-            let mut buf = vec![];
-            rstream.read_line(buf);
-            Ok(())
-        })
-        .map_err(|err| {
-            println!("err {}", err);
-        });
-    tokio::run(conn);
-}
-
 pub fn server(addr: &str) {
     let host = addr.parse().unwrap();
     let listener = TcpListener::bind(&host).expect("bind addr fail");
     let server = listener
         .incoming()
         .map_err(|err| eprintln!("get connect err {:}", err))
-        .for_each(|sock| {
-            let (reader, writer) = sock.split();
-            let byte_copied = copy(reader, writer);
-            let handle = byte_copied
-                .map(|amt| println!("wrote {:}", amt.0))
-                .map_err(|err| eprintln!("io err {:}", err));
-            tokio::spawn(handle)
+        .for_each(move |sock| {
+            let (tx, rx) = codec::Codec.framed(sock).split();
+            let handle = Handle::new(rx, tx).map_err(|err| println!("err"));
+            tokio::spawn(handle);
+            Ok(())
         });
     tokio::run(server);
+}
+
+struct Handle<I, O>
+where
+    I: Stream<Item = codec::Cmd>,
+    O: Sink<SinkItem = codec::Cmd>,
+{
+    stream: I,
+    sink: O,
+}
+
+impl<I, O> Handle<I, O>
+where
+    I: Stream<Item = codec::Cmd>,
+    O: Sink<SinkItem = codec::Cmd>,
+{
+    fn new(stream: I, sink: O) -> Handle<I, O> {
+        Handle { stream, sink }
+    }
+}
+
+impl<I, O> Future for Handle<I, O>
+where
+    I: Stream<Item = codec::Cmd>,
+    O: Sink<SinkItem = codec::Cmd>,
+{
+    type Item = ();
+    type Error = ();
+    fn poll(&mut self) -> Result<Async<Self::Item>, Self::Error> {
+        loop {
+            match self
+                .stream
+                .poll()
+                .map_err(|err| println!("fail to poll from upstream "))?
+            {
+                Async::Ready(Some(item)) => {
+                    let cmd: codec::Cmd = Into::into(item);
+                    println!("item{:?}", cmd);
+                    self.sink
+                        .start_send(cmd)
+                        .map_err(|err| println!("send err"));
+                    self.sink
+                        .poll_complete()
+                        .map_err(|err| println!("flush err"))?;
+                }
+                Async::Ready(None) => {
+                    println!("none  ");
+                    return Ok(Async::Ready(()));
+                }
+                Async::NotReady => {
+                    return Ok(Async::NotReady);
+                }
+            }
+        }
+    }
 }
