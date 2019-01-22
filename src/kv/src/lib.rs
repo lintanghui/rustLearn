@@ -1,13 +1,17 @@
+use self::codec::Error;
 use futures::task;
 use futures::{Async, Future, Poll};
 use futures::{Sink, Stream};
+use std::collections::HashMap;
 use std::fmt::Debug;
+use std::str;
+use std::sync::Arc;
+use std::sync::Mutex;
 use tokio::io::copy;
 use tokio::net::tcp::{ConnectFuture, TcpListener, TcpStream};
 use tokio::prelude::*;
 use tokio::runtime::current_thread;
 use tokio_codec::{Decoder, Encoder};
-use self::codec::Error;
 mod codec;
 mod stdnet;
 
@@ -36,12 +40,13 @@ struct Connect {
 pub fn server(addr: &str) {
     let host = addr.parse().unwrap();
     let listener = TcpListener::bind(&host).expect("bind addr fail");
+    let kv = Arc::new(Mutex::new(HashMap::new()));
     let server = listener
         .incoming()
         .map_err(|err| eprintln!("get connect err {:}", err))
         .for_each(move |sock| {
             let (tx, rx) = codec::Codec.framed(sock).split();
-            let handle = Handle::new(rx, tx).map_err(|err| println!("err"));
+            let handle = Handle::new(rx, tx, kv.clone()).map_err(|err| println!("err"));
             tokio::spawn(handle);
             Ok(())
         });
@@ -50,27 +55,28 @@ pub fn server(addr: &str) {
 
 struct Handle<I, O>
 where
-    I: Stream<Item = codec::Cmd>,
-    O: Sink<SinkItem = codec::Cmd>,
+    I: Stream<Item = codec::Cmd, Error = codec::Error>,
+    O: Sink<SinkItem = codec::Cmd, SinkError = codec::Error>,
 {
     stream: I,
     sink: O,
+    db: Arc<Mutex<HashMap<String, String>>>,
 }
 
 impl<I, O> Handle<I, O>
 where
-    I: Stream<Item = codec::Cmd>,
-    O: Sink<SinkItem = codec::Cmd>,
+    I: Stream<Item = codec::Cmd, Error = codec::Error>,
+    O: Sink<SinkItem = codec::Cmd, SinkError = codec::Error>,
 {
-    fn new(stream: I, sink: O) -> Handle<I, O> {
-        Handle { stream, sink }
+    fn new(stream: I, sink: O, db: Arc<Mutex<HashMap<String, String>>>) -> Handle<I, O> {
+        Handle { stream, sink, db }
     }
 }
 
 impl<I, O> Future for Handle<I, O>
 where
-    I: Stream<Item = codec::Cmd>,
-    O: Sink<SinkItem = codec::Cmd>,
+    I: Stream<Item = codec::Cmd, Error = codec::Error>,
+    O: Sink<SinkItem = codec::Cmd, SinkError = codec::Error>,
 {
     type Item = ();
     type Error = ();
@@ -79,13 +85,23 @@ where
             match self
                 .stream
                 .poll()
-                .map_err(|err| println!("fail to poll from upstream "))?
+                .map_err(|err| println!("fail to poll from upstream {:?}", err))?
             {
                 Async::Ready(Some(item)) => {
                     let cmd: codec::Cmd = Into::into(item);
-                    println!("item{:?}", cmd);
+                    let mut kv = self.db.lock().unwrap();
+                    let resp=  match cmd.cmd_type {
+                        codec::CmdType::GET => match kv.get(&cmd.Key()) {
+                            Some(value) =>  codec::Cmd::new(&value),
+                            None => codec::Cmd::new("None"),
+                        },
+                        codec::CmdType::SET => {
+                            kv.insert(cmd.Key(), cmd.Value());
+                          codec::Cmd::new("OK")
+                        }
+                    };
                     self.sink
-                        .start_send(cmd)
+                        .start_send(resp)
                         .map_err(|err| println!("send err"));
                     self.sink
                         .poll_complete()
